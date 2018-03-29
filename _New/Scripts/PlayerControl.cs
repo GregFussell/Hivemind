@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using System;
 
 public class PlayerControl : MonoBehaviour {
 
@@ -10,7 +12,7 @@ public class PlayerControl : MonoBehaviour {
 	public float AddRunSpeed = 1;
 	public float AddWalkSpeed = 1;
 	private bool hasAniComp = false;
-
+    private List<GameObject> selectedZombies = new List<GameObject>();
 	// Use this for initialization
 	void Start () 
 	{
@@ -126,6 +128,7 @@ public class PlayerControl : MonoBehaviour {
 
 	bool CheckAniClip ( string clipname )
 	{	
+        
 		if( this.GetComponent<Animation>().GetClip(clipname) == null ) 
 			return false;
 		else if ( this.GetComponent<Animation>().GetClip(clipname) != null ) 
@@ -133,12 +136,57 @@ public class PlayerControl : MonoBehaviour {
 
 		return false;
 	}
-
-	// Update is called once per frame
-	void Update () 
+    bool isSelecting = false;
+    Vector3 mousePosition1;
+    // Update is called once per frame
+    void Update () 
 	{
-	
-		Move();
+        // If we press the left mouse button, save mouse location and begin selection
+        if (Input.GetMouseButtonDown(0))
+        {
+           // Debug.Log("working");
+            isSelecting = true;
+            mousePosition1 = Input.mousePosition;
+
+        }
+        // If we let go of the left mouse button, end selection
+        if (Input.GetMouseButtonUp(0))
+        {
+            foreach (GameObject g in GameObject.FindGameObjectsWithTag("Zombie"))
+            {
+                //Debug.Log(g.name + "working 3");
+                if (IsWithinSelectionBounds(g))
+                {
+                    //Debug.Log(g.name + "working 2");
+                    selectedZombies.Add(g);
+                }
+                else
+                {
+                    selectedZombies.Remove(g);
+                }
+            }
+            isSelecting = false;
+        }
+
+        if (Input.GetMouseButtonDown(1))
+        {
+
+        }
+
+
+        // If we let go of the left mouse button, end selection
+        if (Input.GetMouseButtonUp(1))
+        {
+
+        }
+        if(isSelecting)
+        {
+            foreach (GameObject g in selectedZombies)
+            {
+                //Debug.Log(g.name);
+            }
+        }
+        Move();
 
 		if ( hasAniComp == true )
 		{	
@@ -200,4 +248,58 @@ public class PlayerControl : MonoBehaviour {
 		// }
 
 	}
+    private Vector3 FindHitPoint(Vector3 mousePos)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(mousePos);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit)) return hit.point;
+        return Vector3.negativeInfinity;
+    }
+    private void HordeMove()
+    {
+        foreach (GameObject g in selectedZombies)
+        {
+            try
+            {
+                Debug.Log("ordering " + g.name);
+                Vector3 position = FindHitPoint(FindHitPoint(Input.mousePosition));
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hit;
+                if (Physics.Raycast(ray, out hit))
+                {
+                    position = hit.point;
+                    g.GetComponent<UnityEngine.AI.NavMeshAgent>().SetDestination(position);
+                }
+
+            }
+            catch (Exception e)
+            {
+
+            }
+        }
+    }
+    void OnGUI()
+    {
+        if (isSelecting)
+        {
+            // Create a rect from both mouse positions
+            var rect = Utils.GetScreenRect(mousePosition1, Input.mousePosition);
+            Utils.DrawScreenRect(rect, new Color(0.8f, 0.8f, 0.95f, 0.25f));
+            Utils.DrawScreenRectBorder(rect, 2, new Color(0.8f, 0.8f, 0.95f));
+        }
+    }
+
+    public bool IsWithinSelectionBounds(GameObject gameObject)
+    {
+        //if (!isSelecting)
+        //    return false;
+
+        var camera = Camera.main;
+        var viewportBounds =
+            Utils.GetViewportBounds(camera, mousePosition1, Input.mousePosition);
+
+        return viewportBounds.Contains(
+            camera.WorldToViewportPoint(gameObject.transform.position));
+    }
+
 }
